@@ -1,0 +1,15 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: grapetask_lms_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: grapetask_lms
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - grapetask_lms_mysql:/var/lib/mysql
+
+volumes:
+  grapetask_lms_mysql:
