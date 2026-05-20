@@ -1,0 +1,246 @@
+"A datetime string with format `Y-m-d H:i:s`, e.g. `2018-05-23 13:43:32`."
+scalar DateTime @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\DateTime")
+
+type Query {
+    me: User @guard(with: ["sanctum"]) @auth
+    user(id: ID @eq): User @find
+    users: [User!]! @all
+    
+    institution(id: ID @eq): Institution @find
+    institutions: [Institution!]! @all
+    
+    course(id: ID @eq): Course @find
+    courses(status: String @eq, level: String @eq): [Course!]! @all
+    
+    videoLesson(id: ID @eq): VideoLesson @find
+    
+    assessmentSet(id: ID @eq): AssessmentSet @find
+    
+    enrollment(id: ID @eq): Enrollment @find
+    myEnrollments: [Enrollment!]! @guard(with: ["sanctum"])
+    
+    group(id: ID @eq): Group @find
+    groups: [Group!]! @all
+    
+    meetings: [Meeting!]! @all
+    
+    notification(id: ID @eq): Notification @find
+    myNotifications: [Notification!]! @guard(with: ["sanctum"])
+    
+    reports: [StudentReport!]! @all
+    pricingPackages: [PricingPackage!]! @all
+}
+
+type Mutation {
+    login(input: LoginInput! @spread): LoginResponse! @field(resolver: "App\\GraphQL\\Mutations\\AuthMutator@login")
+    register(input: RegisterInput! @spread): User! @field(resolver: "App\\GraphQL\\Mutations\\AuthMutator@register")
+    
+    createCourse(input: CreateCourseInput! @spread): Course! @create @guard(with: ["sanctum"])
+    updateCourse(id: ID!, input: UpdateCourseInput! @spread): Course! @update @guard(with: ["sanctum"])
+    
+    enrollInCourse(courseId: ID!): Enrollment! @field(resolver: "App\\GraphQL\\Mutations\\EnrollmentMutator@enroll") @guard(with: ["sanctum"])
+    
+    submitHomework(input: SubmitHomeworkInput! @spread): HomeworkSubmission! @create @guard(with: ["sanctum"])
+    
+    createMeeting(input: CreateMeetingInput! @spread): Meeting! @create @guard(with: ["sanctum"])
+    
+    sendMessage(input: SendMessageInput! @spread): Message! @create @guard(with: ["sanctum"])
+    
+    markNotificationRead(id: ID!): Notification! @update @guard(with: ["sanctum"])
+}
+
+type User {
+    id: ID!
+    name: String!
+    email: String!
+    role: String!
+    learnerCategory: String
+    trainerLevel: String
+    portfolio: String
+    teachingExperience: String
+    joiningReason: String
+    institution: Institution @belongsTo
+    marketplaceGigAccess: Boolean!
+    globalGroupJoined: Boolean!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+}
+
+type Institution {
+    id: ID!
+    name: String!
+    level: String!
+    studentCount: Int!
+    logoUrl: String
+    portalSlug: String
+    users: [User!]! @hasMany
+}
+
+type Course {
+    id: ID!
+    title: String!
+    description: String!
+    level: String!
+    trainer: User! @belongsTo
+    status: String!
+    adminReviewNotes: String
+    videos: [VideoLesson!]! @hasMany
+    createdAt: DateTime!
+}
+
+type VideoLesson {
+    id: ID!
+    course: Course! @belongsTo
+    title: String!
+    position: Int!
+    videoUrl: String!
+    summary: String
+    assessmentSets: [AssessmentSet!]! @hasMany
+}
+
+type AssessmentSet {
+    id: ID!
+    video: VideoLesson! @belongsTo
+    title: String!
+    version: Int!
+    active: Boolean!
+    questions: [Question!]! @hasMany
+}
+
+type Question {
+    id: ID!
+    assessmentSet: AssessmentSet! @belongsTo
+    type: String!
+    prompt: String!
+    options: [String!]
+    points: Int!
+}
+
+type Enrollment {
+    id: ID!
+    learner: User! @belongsTo
+    course: Course! @belongsTo
+    status: String!
+    unlockedVideoPosition: Int!
+    completedAt: DateTime
+}
+
+type HomeworkSubmission {
+    id: ID!
+    enrollment: Enrollment! @belongsTo
+    video: VideoLesson! @belongsTo
+    fileUrl: String
+    textAnswer: String
+    trainerDecision: String
+    trainerRemarks: String
+    createdAt: DateTime!
+}
+
+type Group {
+    id: ID!
+    name: String!
+    type: String!
+    institutionId: ID
+    members: [User!]! @belongsToMany
+}
+
+type Message {
+    id: ID!
+    sender: User! @belongsTo
+    group: Group @belongsTo
+    recipient: User @belongsTo
+    body: String!
+    voiceNoteUrl: String
+    reactionsOnly: Boolean!
+    createdAt: DateTime!
+}
+
+type Meeting {
+    id: ID!
+    trainerId: ID!
+    courseId: ID!
+    startsAt: DateTime!
+    provider: String!
+    meetingUrl: String!
+    agenda: String
+}
+
+type Notification {
+    id: ID!
+    user: User! @belongsTo
+    title: String!
+    body: String!
+    read: Boolean!
+    createdAt: DateTime!
+}
+
+type StudentReport {
+    id: ID!
+    learnerId: ID!
+    trainerId: ID!
+    institutionId: ID!
+    courseId: ID!
+    remarks: String!
+    reportUrl: String!
+    createdAt: DateTime!
+}
+
+type PricingPackage {
+    id: ID!
+    level: String!
+    duration: String!
+    pricePerStudentPkr: Int!
+}
+
+type LoginResponse {
+    access_token: String!
+    user: User!
+}
+
+input LoginInput {
+    email: String!
+    password: String!
+}
+
+input RegisterInput {
+    name: String!
+    email: String!
+    password: String!
+    role: String!
+}
+
+input CreateCourseInput {
+    title: String!
+    description: String!
+    level: String!
+    trainerId: ID!
+}
+
+input UpdateCourseInput {
+    title: String
+    description: String
+    status: String
+}
+
+input SubmitHomeworkInput {
+    enrollmentId: ID!
+    videoId: ID!
+    fileUrl: String
+    textAnswer: String
+}
+
+input CreateMeetingInput {
+    trainerId: ID!
+    courseId: ID!
+    startsAt: DateTime!
+    provider: String!
+    meetingUrl: String!
+    agenda: String
+}
+
+input SendMessageInput {
+    senderId: ID!
+    groupId: ID
+    recipientId: ID
+    body: String!
+}
